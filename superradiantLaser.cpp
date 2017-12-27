@@ -78,10 +78,20 @@ void generateInitialAtoms(Ensemble& ensemble, const Param& param)
   //Generate nAtom atoms
   for (int i = 0; i < nAtom; i++) {
     Atom newAtom;
-    //Ground states
+
     newAtom.sx = VectorXd::Zero(nTrajectory);
     newAtom.sy = VectorXd::Zero(nTrajectory);
-    newAtom.sz = VectorXd::Zero(nTrajectory);
+    
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //Ground state
+    newAtom.sz = -VectorXd::Ones(nTrajectory);
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //Excited state
+    //newAtom.sz = VectorXd::Ones(nTrajectory);
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     ensemble.atoms.push_back(newAtom);
   }
 }
@@ -89,67 +99,69 @@ void generateInitialAtoms(Ensemble& ensemble, const Param& param)
 
 void getDiffusionMatrix(const Ensemble& ensemble, MatrixXd& diffusion, const Param& param)
 { 
-  // //For convenience
-  // const double gc = param.gammac;
-  // const int nAtom = ensemble.atoms.size();
-  // const int nTrajectory = param.nTrajectory;
+  //For convenience
+  const double gc = param.gammac;
+  const double w = param.repumping;
+  const int nAtom = param.nAtom;
+  const int nTrajectory = param.nTrajectory;
 
-  // //Diagonal block matrices
-  // for (int i = 0; i < nAtom; i++) {
-  //   diffusion(NVAR*i, NVAR*i) = gc;
-  //   diffusion(NVAR*i, NVAR*i+1) = 0;
-  //   diffusion(NVAR*i, NVAR*i+2) = gc*ensemble.atoms[i].internal.sx.sum()/nTrajectory;
-  //   diffusion(NVAR*i+1, NVAR*i+1) = gc;
-  //   diffusion(NVAR*i+1, NVAR*i+2) = gc*ensemble.atoms[i].internal.sy.sum()/nTrajectory;
-  //   diffusion(NVAR*i+2, NVAR*i+2) = 2*gc*(ensemble.atoms[i].internal.sz.sum()/nTrajectory+1);
-  // }
+  //Diagonal block matrices
+  for (int i = 0; i < nAtom; i++) {
+    diffusion(NVAR*i, NVAR*i) = gc+w;
+    diffusion(NVAR*i, NVAR*i+1) = 0;
+    diffusion(NVAR*i, NVAR*i+2) = (gc-w)*ensemble.atoms[i].sx.sum()/nTrajectory;
+    diffusion(NVAR*i+1, NVAR*i+1) = gc+w;
+    diffusion(NVAR*i+1, NVAR*i+2) = gc*ensemble.atoms[i].sy.sum()/nTrajectory;
+    diffusion(NVAR*i+2, NVAR*i+2) = 2*gc*(1+ensemble.atoms[i].sz.sum()/nTrajectory)
+                                   +2*w*(1-ensemble.atoms[i].sz.sum()/nTrajectory);
+  }
 
-  // //Off-diagonal block matrices
-  // for (int i = 0; i < nAtom; i++) {
-  //   for (int j = i+1; j < nAtom; j++) {
-  //     diffusion(NVAR*i, NVAR*j) = gc/nTrajectory
-  //       *(ensemble.atoms[i].internal.sz.cwiseProduct(ensemble.atoms[j].internal.sz)).sum();
-  //     diffusion(NVAR*i, NVAR*j+1) = 0;
-  //     diffusion(NVAR*i, NVAR*j+2) = -gc/nTrajectory
-  //       *(ensemble.atoms[i].internal.sz.cwiseProduct(ensemble.atoms[j].internal.sx)).sum();
-  //     diffusion(NVAR*i+1, NVAR*j) = 0;
-  //     diffusion(NVAR*i+1, NVAR*j+1) = gc/nTrajectory
-  //       *(ensemble.atoms[i].internal.sz.cwiseProduct(ensemble.atoms[j].internal.sz)).sum();
-  //     diffusion(NVAR*i+1, NVAR*j+2) = -gc/nTrajectory
-  //       *(ensemble.atoms[i].internal.sz.cwiseProduct(ensemble.atoms[j].internal.sy)).sum();
-  //     diffusion(NVAR*i+2, NVAR*j) = -gc/nTrajectory
-  //       *(ensemble.atoms[j].internal.sz.cwiseProduct(ensemble.atoms[i].internal.sx)).sum();
-  //     diffusion(NVAR*i+2, NVAR*j+1) = -gc/nTrajectory
-  //       *(ensemble.atoms[j].internal.sz.cwiseProduct(ensemble.atoms[i].internal.sy)).sum();
-  //     diffusion(NVAR*i+2, NVAR*j+2) = gc/nTrajectory
-  //       *((ensemble.atoms[i].internal.sx.cwiseProduct(ensemble.atoms[j].internal.sx)).sum()
-  //        +(ensemble.atoms[i].internal.sy.cwiseProduct(ensemble.atoms[j].internal.sy)).sum());
-  //   }
-  // }
+  //Off-diagonal block matrices
+  for (int i = 0; i < nAtom; i++) {
+    for (int j = i+1; j < nAtom; j++) {
+      diffusion(NVAR*i, NVAR*j) = gc/nTrajectory
+        *(ensemble.atoms[i].sz.cwiseProduct(ensemble.atoms[j].sz)).sum();
+      diffusion(NVAR*i, NVAR*j+1) = 0;
+      diffusion(NVAR*i, NVAR*j+2) = -gc/nTrajectory
+        *(ensemble.atoms[i].sz.cwiseProduct(ensemble.atoms[j].sx)).sum();
+      diffusion(NVAR*i+1, NVAR*j) = 0;
+      diffusion(NVAR*i+1, NVAR*j+1) = gc/nTrajectory
+        *(ensemble.atoms[i].sz.cwiseProduct(ensemble.atoms[j].sz)).sum();
+      diffusion(NVAR*i+1, NVAR*j+2) = -gc/nTrajectory
+        *(ensemble.atoms[i].sz.cwiseProduct(ensemble.atoms[j].sy)).sum();
+      diffusion(NVAR*i+2, NVAR*j) = -gc/nTrajectory
+        *(ensemble.atoms[j].sz.cwiseProduct(ensemble.atoms[i].sx)).sum();
+      diffusion(NVAR*i+2, NVAR*j+1) = -gc/nTrajectory
+        *(ensemble.atoms[j].sz.cwiseProduct(ensemble.atoms[i].sy)).sum();
+      diffusion(NVAR*i+2, NVAR*j+2) = gc/nTrajectory
+        *((ensemble.atoms[i].sx.cwiseProduct(ensemble.atoms[j].sx)).sum()
+         +(ensemble.atoms[i].sy.cwiseProduct(ensemble.atoms[j].sy)).sum());
+    }
+  }
 
-  // //The lower half of the symmetric matrix
-  // for (int i = 1; i < NVAR*nAtom; i++) {
-  //   for (int j = 0; j < i; j++) {
-  //     diffusion(i,j) = diffusion(j,i);
-  //   }
-  // }
+  //The lower half of the symmetric matrix
+  for (int i = 1; i < NVAR*nAtom; i++) {
+    for (int j = 0; j < i; j++) {
+      diffusion(i,j) = diffusion(j,i);
+    }
+  }
 }
 
 void getSqrtMatrix(const MatrixXd& diffusion, MatrixXd& bMatrix)
 {
   SelfAdjointEigenSolver<MatrixXd> es(diffusion);
-  //MatrixXd bMatrix = es.operatorSqrt();
-  MatrixXd v = es.eigenvectors();
-  MatrixXd vt = v.transpose();
-  VectorXd eigen = es.eigenvalues();
-  for (int i=0; i<eigen.size(); i++)
-    if(abs(eigen[i]) < 1.0E-10)
-      eigen[i] = 0;
-  MatrixXd l = eigen.asDiagonal();
-  bMatrix = v*l.cwiseSqrt()*vt;
-  //Quit if NaN
-  std::cout << "bMatrix is " << std::endl << bMatrix << std::endl << std::endl;
-  std::cout << "Eigenvalues of mMatrix is " << std::endl << es.eigenvalues() << std::endl << std::endl;
+  bMatrix = es.operatorSqrt();
+  // MatrixXd v = es.eigenvectors();
+  // MatrixXd vt = v.transpose();
+  // VectorXd eigen = es.eigenvalues();
+  // for (int i=0; i<eigen.size(); i++)
+  //   if(abs(eigen[i]) < 1.0E-10)
+  //     eigen[i] = 0;
+  // MatrixXd l = eigen.asDiagonal();
+  // bMatrix = v*l.cwiseSqrt()*vt;
+  // //Quit if NaN
+  // std::cout << "bMatrix is " << std::endl << bMatrix << std::endl << std::endl;
+  // std::cout << "Eigenvalues of mMatrix is " << std::endl << es.eigenvalues() << std::endl << std::endl;
   if (bMatrix(1,1) != bMatrix(1,1)) {
     std::cout << "Not a number\n" << std::endl;
     exit(EXIT_FAILURE);
@@ -160,8 +172,9 @@ void getDriftVector(const VectorXd& sAtoms, VectorXd& drift, const Param& param)
 {
   //For convenience
   const double gc = param.gammac;
-  const int size = sAtoms.size();
-  const int nAtom = size/NVAR;
+  const double w = param.repumping;
+  const int nAtom = param.nAtom;
+  const int size = NVAR*nAtom;
   
   //Definition of Jx and Jy
   double jx = 0, jy = 0;
@@ -171,73 +184,74 @@ void getDriftVector(const VectorXd& sAtoms, VectorXd& drift, const Param& param)
   }
 
   //Drift vector terms. Dimension 3*nAtom, structure {D1+,D1-,D1z, D2+, D2-, D2z,....}
-  drift = VectorXd::Zero(size);
   for (int j = 0; j < nAtom; j++) {
-    drift[NVAR*j] = gc/2*jx*sAtoms[NVAR*j+2];
-    drift[NVAR*j+1] = gc/2*jy*sAtoms[NVAR*j+2];
-    drift[NVAR*j+2] = -gc/2*(jx*sAtoms[NVAR*j]+jy*sAtoms[NVAR*j+1]);
+    drift[NVAR*j] = gc/2*(jx*sAtoms[NVAR*j+2]-sAtoms[NVAR*j])-w/2*sAtoms[NVAR*j];
+    drift[NVAR*j+1] = gc/2*(jy*sAtoms[NVAR*j+2]-sAtoms[NVAR*j+1])-w/2*sAtoms[NVAR*j+1];
+    drift[NVAR*j+2] = -gc/2*(jx*sAtoms[NVAR*j]+jy*sAtoms[NVAR*j+1]-pow(sAtoms[NVAR*j],2)-pow(sAtoms[NVAR*j+1],2)
+                     +2+2*sAtoms[NVAR*j+2])+w*(1-sAtoms[NVAR*j+2]);
   }
   
 }
 
 void advanceInterval(Ensemble& ensemble, const Param& param)
 {
-  // //For convenience
-  // const double gc = param.gammac;
-  // const int nTrajectory = param.nTrajectory;
-  // const int nAtom = ensemble.atoms.size();
-  // const int size = NVAR*nAtom;
+  //For convenience
+  const double dt = param.dt;
+  const double gc = param.gammac;
+  const int nTrajectory = param.nTrajectory;
+  const int nAtom = ensemble.atoms.size();
+  const int size = NVAR*nAtom;
 
-  // //Diffusion matrix 2*m_ij. The data structure is {1+,1-,1z,2+,2-,2z,...}^2;
-  // MatrixXd diffusion = MatrixXd::Zero(size, size);
-  // getDiffusionMatrix(ensemble, diffusion, param);
-  // //Get the sqrt matrix.
-  // MatrixXd bMatrix = MatrixXd::Zero(size, size);
-  // getSqrtMatrix(diffusion, bMatrix);
+  //Diffusion matrix 2*m_ij. The data structure is {1x,1y,1z,2x,2y,2z,...}^2;
+  MatrixXd diffusion = MatrixXd::Zero(size, size);
+  getDiffusionMatrix(ensemble, diffusion, param);
+  //std::cout << diffusion <<std::endl << std::endl;
+  //Get the sqrt matrix.
+  MatrixXd bMatrix = MatrixXd::Zero(size, size);
+  getSqrtMatrix(diffusion, bMatrix);
   
-  // //Loop over all trajectories. "n" stands for the number of the current trajectory.
-  // for (int n = 0; n < nTrajectory-1; n++) {
+  //Loop over all trajectories. "n" stands for the number of the current trajectory.
+  for (int n = 0; n < nTrajectory; n++) {
 
-  //   //Y_n. Notations see "Beam laser/11.1" on ipad pro.
-  //   VectorXd sAtoms = VectorXd::Zero(size);;//a vector of spins for all the atoms
-  //   for (int i = 0; i < nAtom; i++) {
-  //     sAtoms[NVAR*i] = ensemble.atoms[i].internal.sx[n];
-  //     sAtoms[NVAR*i+1] = ensemble.atoms[i].internal.sy[n];
-  //     sAtoms[NVAR*i+2] = ensemble.atoms[i].internal.sz[n];
-  //   }
+    //Y_n. Notations see "Beam laser/11.1" on ipad pro.
+    VectorXd sAtoms = VectorXd::Zero(size);;//a vector of spins for all the atoms
+    for (int i = 0; i < nAtom; i++) {
+      sAtoms[NVAR*i] = ensemble.atoms[i].sx[n];
+      sAtoms[NVAR*i+1] = ensemble.atoms[i].sy[n];
+      sAtoms[NVAR*i+2] = ensemble.atoms[i].sz[n];
+    }
 
-  //   //drift as a function of sAtoms
-  //   VectorXd drift;
-  //   getDriftVector(sAtoms, drift, param);
+    //drift as a function of sAtoms
+    VectorXd drift = VectorXd::Zero(size);
+    getDriftVector(sAtoms, drift, param);
 
-  //   //dW
-  //   //double dw = rng.get_gaussian_rn(sqrt(dt));
-  //   //VectorXd dW = VectorXd::Ones(size)*dw;
+
+    //dW
+    //double dw = rng.get_gaussian_rn(sqrt(dt));
+    //VectorXd dW = VectorXd::Ones(size)*dw;
     
-  //   VectorXd dW = VectorXd::Zero(size);
-  //   for (int i = 0; i < size; i++) {
-  //     dW[i] = rng.get_gaussian_rn(sqrt(dt));
-  //   }
-    
+    VectorXd dW = VectorXd::Zero(size);
+    for (int i = 0; i < size; i++) {
+      dW[i] = rng.get_gaussian_rn(sqrt(dt));
+    }
 
-  //   //Y'. Notations see "Beam laser/11.1" on ipad pro.
-  //   VectorXd sAtomsTemp; //Temporary value for sAtoms
-  //   sAtomsTemp = sAtoms+drift*dt+diffusion*dW;
+    //Y'. Notations see "Beam laser/11.1" on ipad pro.
+    VectorXd sAtomsTemp = sAtoms+drift*dt+bMatrix*dW;//Temporary value for sAtoms
 
-  //   //driftTemp as a function of sAtomsTemp
-  //   VectorXd driftTemp;
-  //   getDriftVector(sAtomsTemp, driftTemp, param);
+    //driftTemp as a function of sAtomsTemp
+    VectorXd driftTemp = VectorXd::Zero(size);
+    getDriftVector(sAtomsTemp, driftTemp, param);
 
-  //   //Y_{n+1}
-  //   sAtoms += (driftTemp+drift)*dt/2+diffusion*dW;
+    //Y_{n+1}
+    sAtoms += (driftTemp+drift)*dt/2+bMatrix*dW;
 
-  //   //Put back
-  //   for (int i = 0; i < nAtom; i++) {
-  //     ensemble.atoms[i].internal.sx[n+1] = sAtoms[NVAR*i];
-  //     ensemble.atoms[i].internal.sy[n+1] = sAtoms[NVAR*i+1];
-  //     ensemble.atoms[i].internal.sz[n+1] = sAtoms[NVAR*i+2];
-  //   }
-  // }
+    //Put back
+    for (int i = 0; i < nAtom; i++) {
+      ensemble.atoms[i].sx[n] = sAtoms[NVAR*i];
+      ensemble.atoms[i].sy[n] = sAtoms[NVAR*i+1];
+      ensemble.atoms[i].sz[n] = sAtoms[NVAR*i+2];
+    }
+  }
 }
 
 void storeObservables(Observables& observables, int s, Ensemble& ensemble, 
@@ -248,38 +262,36 @@ void storeObservables(Observables& observables, int s, Ensemble& ensemble,
   const double w = param.repumping;
   const int nTrajectory = param.nTrajectory;
   const int nAtom = ensemble.atoms.size();
+  
+  //The order of the definitions of observables matters. 
+  
+  //inversion
+  double inversion = 0;
+  for (int i = 0; i < nAtom; i++) {
+    inversion += ensemble.atoms[i].sz.sum();
+  }
+  observables.inversion(s) = inversion/nAtom/nTrajectory;
 
-  // //intensity
-  // double intensity = 0;
-  // for (int n = 0; n < nTrajectory; n++) {
-  //   for (int i = 0; i < nAtom; i++) {
-  //     for (int j = 0; j < nAtom; j++) {
-  //       intensity += ensemble.atoms[i].internal.sx[n]*ensemble.atoms[j].internal.sx[n]
-  //                   +ensemble.atoms[i].internal.sy[n]*ensemble.atoms[j].internal.sy[n];
-  //     }
-  //   }
-  // }
-  // observables.intensity(s) = gc/4*intensity/nTrajectory;
+  //intensityUnCor
+  double intensityUnCor = 0;
+  observables.intensityUnCor(s) = gc/2*(nAtom+inversion/nTrajectory);
 
-  // //intensityUnCor
-  // double intensityUnCor = 0;
-  // for (int i = 0; i < nAtom; i++) {
-  //   intensityUnCor += ensemble.atoms[i].internal.sx.cwiseAbs2().sum()
-  //                    +ensemble.atoms[i].internal.sy.cwiseAbs2().sum();
-  // }
-  // observables.intensityUnCor(s) = gc/4*intensityUnCor/nTrajectory;
+  //spinSpinCor
+  double spinSpinCor =0;
+  for (int n = 0; n < nTrajectory; n++) {
+    for (int i = 0; i < nAtom; i++) {
+      for (int j = 0; j < nAtom; j++) {
+        spinSpinCor += (ensemble.atoms[i].sx[n]*ensemble.atoms[j].sx[n]
+                       +ensemble.atoms[i].sy[n]*ensemble.atoms[j].sy[n])/4;
+      }
+    }
+  }
+  observables.spinSpinCor(s) = spinSpinCor/nAtom/(nAtom-1)/nTrajectory;
 
-  // //inversion
-  // double inversion = 0;
-  // for (int i = 0; i < nAtom; i++) {
-  //   inversion += ensemble.atoms[i].internal.sz.sum();
-  // }
-  // observables.inversion(s) = inversion/nAtom/nTrajectory;
-
-  // //spinSpinCor
-  // double spinSpinCor = intensity-intensityUnCor;
-  // observables.spinSpinCor(s) = spinSpinCor/nAtom/(nAtom-1)/nTrajectory;
+  //intensity
+  observables.intensity(s) = gc*spinSpinCor/nTrajectory+observables.intensityUnCor(s);
 }
+  
 
 void evolve(Ensemble& ensemble, const Param& param, Observables& observables)
 {
@@ -295,7 +307,7 @@ void evolve(Ensemble& ensemble, const Param& param, Observables& observables)
     if ((long)(n+1)*param.nstore/(nTimeStep+1) > s) {
       storeObservables(observables, s++, ensemble, param);
       //debug
-      //std::cout << "This is timestep " << n << "/" << nTimeStep << std::endl << std::endl;
+      std::cout << "This is timestep " << n << "/" << nTimeStep << std::endl << std::endl;
       //debug
     }
     if (n != nTimeStep)
@@ -343,7 +355,7 @@ int main(int argc, char *argv[])
   //Write Observables
   ObservableFiles observableFiles;
   writeObservables(observableFiles, observables);
-  
+
   //Move .dat files into the directory named "name"
   mkdir(param);
 
