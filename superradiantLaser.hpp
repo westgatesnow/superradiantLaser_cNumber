@@ -23,11 +23,6 @@ using namespace Eigen;
 #include "RNG.hpp"
 RNG rng(time(NULL));
 
-//Define the complex I and ONE
-static const std::complex<double> I = std::complex<double>(0.0,1.0);
-static const std::complex<double> ONE = std::complex<double>(1.0,0.0);
-
-#define NVAR 3 // 3 variables for each atom for this code;
 
 //Define data structures
 
@@ -38,25 +33,12 @@ typedef struct {
   VectorXd sz;       //sigma_z. Dim: nTrajectory
 } Atom;
 
+#define NVAR 3 // 3 variables for each atom for this code;
+
 //Ensemble of atoms
 typedef struct {
   std::vector<Atom> atoms;
 } Ensemble;
-
-//Configuration setup; copied from Murray's old codes
-typedef struct {
-  const char* configFile;
-} CmdLineArgs;
-const char* usageHeader = "\nBeam Laser Simulation.\n";
-const char* usageMessage =
-  "\n"
-  "Usage:         "
-  "beamLaser "
-  "--file"
-  "\n"
-  "--file, -f     : Configuration file to setup the simulation\n"
-  "--help, -h     : Print this usage message\n"
-  "\n\n";
 
 //Simulation parameters
 typedef struct Param {

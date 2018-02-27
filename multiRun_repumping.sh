@@ -1,5 +1,5 @@
 #This bash file is to run multiple simulations with respect to repumping
-#for the superradiant laser using cumulant theory.
+#for the superradiant laser using cNumber theory.
 
 iFile=input.txt
 nMax=10
@@ -16,18 +16,20 @@ then
 	printf "dt 0.01
 	tmax 20
 	nstore 100
+	nTrajectory 40
 	nAtom 100
 	gammac 0.1
 	repumping $w			
-	name N100_repumping0${w}" > $iFile
+	name N100_repumping0${w}_Traj40" > $iFile
 else
 	printf "dt 0.01
 	tmax 20
 	nstore 100
+	nTrajectory 40
 	nAtom 100
 	gammac 0.1
 	repumping $w
-	name N100_repumping${w}" > $iFile
+	name N100_repumping${w}_Traj40" > $iFile
 fi
 
 

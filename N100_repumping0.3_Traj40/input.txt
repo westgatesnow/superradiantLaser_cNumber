@@ -1,0 +1,8 @@
+dt 0.01
+	tmax 20
+	nstore 100
+	nTrajectory 40
+	nAtom 100
+	gammac 0.1
+	repumping .3			
+	name N100_repumping0.3_Traj40

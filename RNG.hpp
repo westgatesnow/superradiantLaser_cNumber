@@ -23,6 +23,7 @@ class RNG {
                 double get_gaussian_rn ( double sigma ) const;
                 unsigned long int get_uniform_int () const;
                 unsigned long int get_poissonian_int ( double mean ) const;
+                unsigned long int get_binomial_int (double p, unsigned int n) const;
 
         private :
 

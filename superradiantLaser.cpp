@@ -1,36 +1,6 @@
 //This program is used to simulate the superradiant laser using the cNumber Langevin method.
 #include "superradiantLaser.hpp"
-
-//Routine
-void getOptions(int argc, char** argv, CmdLineArgs* cmdLineArgs)
-{
-  cmdLineArgs->configFile="sampleSimulation.txt";
-  while (1) {
-    int c;
-    static struct option long_options[] = {
-      {"help", no_argument, 0, 'h'},
-      {"file", required_argument, 0, 'f'},
-      {0, 0, 0, 0}
-    };
-    int option_index = 0;
-    c = getopt_long(argc, argv, "hf:", long_options, &option_index);
-    if (c == -1) break;
-    switch (c) {
-      case 'h': std::cout << usageHeader << usageMessage;
-        exit(0);
-      case 'f': cmdLineArgs->configFile = optarg;
-        break;
-      default: exit(-1);
-    }
-  }
-  if (optind < argc) {
-    std::cout << "Error: non-option arguments: ";
-    while (optind < argc) std::cout << argv[optind++] << " ";
-    std::cout << std::endl;
-    exit(-1);
-  }
-  std::cout << "Using parameters file " << cmdLineArgs->configFile << std::endl;
-}
+#include "config.hpp"
 
 //Changes required subject to the definition of Param 
 void getParam(const char* filename, Param *param) 
@@ -78,10 +48,15 @@ void generateInitialAtoms(Ensemble& ensemble, const Param& param)
   //Generate nAtom atoms
   for (int i = 0; i < nAtom; i++) {
     Atom newAtom;
-
-    newAtom.sx = VectorXd::Zero(nTrajectory);
-    newAtom.sy = VectorXd::Zero(nTrajectory);
     
+    //sx and sy
+    newAtom.sx = VectorXd::Zero(nTrajectory);
+     for (int j = 0; j < nTrajectory; j++) 
+       newAtom.sx[j] = double(rng.get_binomial_int(0.5, 1))*2-1; //50percent giving 1 or -1
+    newAtom.sy = VectorXd::Zero(nTrajectory);
+     for (int j = 0; j < nTrajectory; j++)   
+       newAtom.sy[j] = double(rng.get_binomial_int(0.5, 1))*2-1;     //50percent giving 1 or -1
+   
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
     //Ground state
     newAtom.sz = -VectorXd::Ones(nTrajectory);
@@ -210,6 +185,7 @@ void advanceInterval(Ensemble& ensemble, const Param& param)
   MatrixXd bMatrix = MatrixXd::Zero(size, size);
   getSqrtMatrix(diffusion, bMatrix);
   
+
   //Loop over all trajectories. "n" stands for the number of the current trajectory.
   for (int n = 0; n < nTrajectory; n++) {
 
@@ -227,8 +203,8 @@ void advanceInterval(Ensemble& ensemble, const Param& param)
 
 
     //dW
-    //double dw = rng.get_gaussian_rn(sqrt(dt));
-    //VectorXd dW = VectorXd::Ones(size)*dw;
+    // double dw = rng.get_gaussian_rn(sqrt(dt));
+    // VectorXd dW = VectorXd::Ones(size)*dw;
     
     VectorXd dW = VectorXd::Zero(size);
     for (int i = 0; i < size; i++) {
@@ -259,7 +235,6 @@ void storeObservables(Observables& observables, int s, Ensemble& ensemble,
 {
   //For convenience
   const double gc = param.gammac;
-  const double w = param.repumping;
   const int nTrajectory = param.nTrajectory;
   const int nAtom = ensemble.atoms.size();
   
@@ -325,17 +300,12 @@ void writeObservables(ObservableFiles& observableFiles,
 
 }
 
-void mkdir(Param& param) {
-  std::string mkdir = "mkdir "+param.name; //make a new directory to store data
-  system(mkdir.c_str());
-  std::string cpInput = "cp input.txt "+param.name;
-  system(cpInput.c_str());  
-  std::string moveparam = "mv *.dat "+param.name;
-  system(moveparam.c_str());
-};
-
 int main(int argc, char *argv[])
 {
+  //Count time
+  clock_t t1,t2;
+  t1=clock();
+
   //Configuration
   CmdLineArgs config;
   getOptions(argc, argv, &config);
@@ -358,6 +328,11 @@ int main(int argc, char *argv[])
 
   //Move .dat files into the directory named "name"
   mkdir(param);
+  
+  //Count time
+  t2=clock();
+  float diff = ((float)t2-(float)t1)/CLOCKS_PER_SEC;
+  std::cout << "\nThis program takes " << diff << " seconds." << std::endl << std::endl;
 
   return 0;
 }

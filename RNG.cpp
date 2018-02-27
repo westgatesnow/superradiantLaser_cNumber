@@ -37,4 +37,7 @@ unsigned long int RNG::get_poissonian_int ( double mean ) const
         return gsl_ran_poisson ( r_, mean );
 }
 
-
+unsigned long int RNG::get_binomial_int (double p, unsigned int n) const
+{
+	    return gsl_ran_binomial (r_, p, n);
+}
