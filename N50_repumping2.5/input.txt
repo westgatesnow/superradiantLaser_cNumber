@@ -1,8 +1,0 @@
-dt 0.01
-tmax 20
-nstore 100
-nTrajectory 1
-nAtom 50
-gammac 0.1
-repumping 2.5
-name N50_repumping2.5

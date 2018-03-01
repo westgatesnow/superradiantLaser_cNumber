@@ -1,8 +1,0 @@
-dt 0.01
-tmax 20
-nstore 100
-nTrajectory 100
-nAtom 3
-gammac 0.1
-repumping 0.15
-name N3_repumping0.15_Traj100

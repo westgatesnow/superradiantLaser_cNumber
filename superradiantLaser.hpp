@@ -75,13 +75,12 @@ std::ostream& operator<< (std::ostream& o,const Param& s)
 typedef struct Observables {
   Observables(const int n/*,const int m*/) : intensity(n), intensityUnCor(n),
                                           inversion(n), spinSpinCor(n)
-                                          //,g1(m)
   {}
   VectorXd intensity;
   VectorXd intensityUnCor;
   VectorXd inversion;
   VectorXd spinSpinCor;
-  //VectorXd g1;
+
 } Observables;
 
 typedef struct ObservableFiles {
